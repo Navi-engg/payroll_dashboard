@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Medallay Export Group</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      padding: 20px;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 1600px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    h2 {
+      text-align: center;
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .row, .row-2, .row-3, .row-4, .row-full {
+      display: grid;
+      gap: 20px;
+    }
+    .row { grid-template-columns: repeat(4, 1fr); }
+    .row-2, .row-3, .row-4 { grid-template-columns: repeat(2, 1fr); }
+    .row-full { grid-template-columns: 1fr; }
+    .card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      padding: 20px;
+      position: relative;
+    }
+    canvas {
+      width: 100% !important;
+      max-height: 400px;
+    }
+    #deptBar, #desgBar {
+      max-height: 416px !important;
+    }
+    .kpi-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #0f172a;
+      margin-top: 10px;
+    }
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1e40af;
+      margin-bottom: 10px;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .file-upload-label {
+      display: inline-block;
+      background-color: #2563eb;
+      color: white;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      margin: 10px auto;
+    }
+    .file-upload-wrapper {
+      text-align: center;
+    }
+    .expand-btn, .download-btn {
+      position: absolute;
+      top: 15px;
+      background: #e2e8f0;
+      border: none;
+      font-size: 14px;
+      border-radius: 6px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+    .expand-btn {
+      right: 45px;
+    }
+    .download-btn {
+      right: 10px;
+    }
+    .fullscreen {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+      background: white;
+      padding: 30px !important;
+      box-sizing: border-box;
+      z-index: 9999;
+    }
+    .download-section {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .download-section button {
+      background: #0ea5e9;
+      border: none;
+      color: white;
+      font-weight: bold;
+      padding: 8px 20px;
+      border-radius: 6px;
+      margin: 0 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="dashboard">
+    <h2>Medallay Export Group</h2>
+
+    <div class="file-upload-wrapper">
+      <label for="upload" class="file-upload-label">Upload Excel File</label>
+      <input type="file" id="upload" accept=".xlsx, .xls" />
+    </div>
+
+    <div class="download-section">
+      <button onclick="downloadDashboardAsImage()">Download Dashboard as Image</button>
+      <button onclick="downloadDashboardAsPDF()">Download Dashboard as PDF</button>
+    </div>
+
+    <div class="row" id="kpiRow"></div>
+
+    <!-- Chart rows -->
+    <div class="row-2">
+      <div class="card"><h3>Pay Category Distribution</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="payPie"></canvas></div>
+      <div class="card"><h3>Company-wise Pay Category</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="companyPayPie"></canvas></div>
+    </div>
+
+    <div class="row-full">
+      <div class="card"><h3>Workforce Distribution by Department</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="deptBar"></canvas></div>
+    </div>
+
+    <div class="row-2">
+      <div class="card"><h3>Workforce Distribution by Designation</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="desgBar"></canvas></div>
+      <div class="card"><h3>Marital Status Distribution</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="maritalPie"></canvas></div>
+    </div>
+
+    <div class="row-2">
+      <div class="card"><h3>Gender Distribution</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="sexPie"></canvas></div>
+      <div class="card"><h3>UAN Enrollment</h3>
+        <button class="expand-btn" onclick="toggleFullscreen(this)">⛶</button>
+        <button class="download-btn" onclick="downloadChart(this)">⭳</button>
+        <canvas id="uanPie"></canvas></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('upload').addEventListener('change', handleFile, false);
+
+    function handleFile(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+        generateDashboard(json);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function toggleFullscreen(btn) {
+      const card = btn.closest('.card');
+      card.classList.toggle('fullscreen');
+      const canvas = card.querySelector('canvas');
+      const chart = Chart.getChart(canvas);
+      if (chart) setTimeout(() => chart.resize(), 300);
+    }
+
+    function downloadChart(btn) {
+      const canvas = btn.closest('.card').querySelector('canvas');
+      const link = document.createElement('a');
+      link.download = canvas.id + '.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    async function downloadDashboardAsImage() {
+      const dashboard = document.getElementById("dashboard");
+      const canvas = await html2canvas(dashboard);
+      const link = document.createElement("a");
+      link.download = "dashboard.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    async function downloadDashboardAsPDF() {
+      const dashboard = document.getElementById("dashboard");
+      const canvas = await html2canvas(dashboard);
+      const imgData = canvas.toDataURL("image/png");
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF("p", "pt", "a4");
+      const width = pdf.internal.pageSize.getWidth();
+      const height = canvas.height * width / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, width, height);
+      pdf.save("dashboard.pdf");
+    }
+
+    function generateDashboard(data) {
+      const companyWise = {}, payCategory = {}, dept = {}, desg = {}, sex = {}, marital = {};
+      const uan = { 'Enrolled': 0, 'Not Enrolled': 0 };
+      const companyPayMap = {};
+      const total = data.length;
+
+      data.forEach(row => {
+        const comp = row['COMPANY NAME'] || 'Unknown';
+        companyWise[comp] = (companyWise[comp] || 0) + 1;
+
+        const pay = row['PAY CATEGORY'] || 'Unknown';
+        payCategory[pay] = (payCategory[pay] || 0) + 1;
+        companyPayMap[comp] = companyPayMap[comp] || {};
+        companyPayMap[comp][pay] = (companyPayMap[comp][pay] || 0) + 1;
+
+        const dpt = row['DEPARTMENT'] || 'Unknown';
+        dept[dpt] = (dept[dpt] || 0) + 1;
+
+        const des = row['DESIGNATION'] || 'Unknown';
+        desg[des] = (desg[des] || 0) + 1;
+
+        const gender = (row['SEX'] || '').trim().toLowerCase();
+        if (gender) sex[gender] = (sex[gender] || 0) + 1;
+
+        const uanVal = (row['UAN'] || '').toString().trim();
+        if (uanVal && uanVal !== '0') uan['Enrolled']++;
+        else uan['Not Enrolled']++;
+
+        const ms = row['MARITAL STATUS'] || 'Unknown';
+        marital[ms] = (marital[ms] || 0) + 1;
+      });
+
+      renderKPIs(total, companyWise);
+      renderPie('payPie', payCategory);
+      renderStackedBar('companyPayPie', companyPayMap);
+      renderBar('deptBar', dept);
+      renderBar('desgBar', desg);
+      renderPie('maritalPie', marital);
+      renderPie('sexPie', sex);
+      renderPie('uanPie', uan);
+    }
+
+    function renderKPIs(total, companyWise) {
+      const kpiRow = document.getElementById('kpiRow');
+      kpiRow.innerHTML = '';
+      const card = (label, value) => `
+        <div class="card">
+          <h3>${label}</h3>
+          <div class="kpi-value">${value}</div>
+        </div>`;
+      kpiRow.innerHTML += card('Total Employees', total);
+      for (const comp in companyWise) {
+        kpiRow.innerHTML += card(`${comp}`, companyWise[comp]);
+      }
+    }
+
+    function renderBar(id, dataObj) {
+      const labels = Object.keys(dataObj);
+      const data = Object.values(dataObj);
+      new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ label: 'Count', data, backgroundColor: '#6366f1' }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'top',
+              color: '#000',
+              font: { weight: 'bold' }
+            }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+
+    function renderPie(id, dataObj) {
+      const labels = Object.keys(dataObj);
+      const data = Object.values(dataObj);
+      const total = data.reduce((a, b) => a + b, 0);
+      new Chart(document.getElementById(id), {
+        type: 'pie',
+        data: {
+          labels,
+          datasets: [{ data, backgroundColor: ['#38bdf8', '#f87171', '#34d399', '#fbbf24', '#a78bfa'] }]
+        },
+        options: {
+          plugins: {
+            datalabels: {
+              formatter: (val) => `${val} (${((val / total) * 100).toFixed(1)}%)`,
+              color: '#000',
+              font: { weight: 'bold', size: 14 }
+            }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+
+    function renderStackedBar(id, companyPayMap) {
+      const companies = Object.keys(companyPayMap);
+      const payCats = Array.from(new Set(companies.flatMap(c => Object.keys(companyPayMap[c]))));
+      const colors = ['#38bdf8', '#f87171', '#fbbf24', '#34d399', '#a78bfa'];
+      const datasets = payCats.map((cat, i) => ({
+        label: cat,
+        data: companies.map(c => companyPayMap[c][cat] || 0),
+        backgroundColor: colors[i % colors.length]
+      }));
+      new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: { labels: companies, datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            datalabels: {
+              formatter: val => val,
+              color: '#000',
+              font: { weight: 'bold' }
+            },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+  </script>
+</body>
+</html>
